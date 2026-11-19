@@ -2,14 +2,22 @@ package githubrepoeditor;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Dictionary;
+import java.util.Hashtable;
+import java.util.List;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ListBranchCommand.ListMode;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
 import org.eclipse.jgit.lib.Config;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.transport.*;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 public class RepositoryEditor {
 	
@@ -18,14 +26,26 @@ public class RepositoryEditor {
 	private String name;
 	private String branch;
 	private Repository repository;
+	private Git git;
+	private Dictionary<String, Object> repoData = new Hashtable<>();
+	private List<Ref> branches;
 	
 		
-	public RepositoryEditor(String path, String branch) { //throws GitAPIException {
-		String[] splitted = path.split("/");
+	public RepositoryEditor(String name, String branch) { //throws GitAPIException {
+		//String[] splitted = path.split("/");
 		
-		this.path = path;
-		this.name = splitted[splitted.length-1];
+		this.path = System.getProperty("user.dir") + "/localrepos";
+		this.name = name; //splitted[splitted.length-1];
 		this.branch = branch;
+		this.repoData.put("name", name);
+		
+		try {
+			// load git
+			this.git = Git.open(new File(this.getCurrentRepositoryPath()));
+		} catch (IOException e) {
+			//e.printStackTrace();
+			System.out.println("Could not find initial local repository at:\n" + this.getCurrentRepositoryPath());
+		}
 		
 		//wanted to automatically create a new repo on object creation, but is likely not viable
 	}
@@ -33,6 +53,40 @@ public class RepositoryEditor {
 	public void setCredentials(String user, String pw) {
 		this.credentials = new UsernamePasswordCredentialsProvider(user, pw);
 		//Git.init().
+	}
+	
+	public Repository getCurrentRepository() {
+		return this.repository;
+	}
+	
+	public String getCurrentRepositoryPath() {
+		return this.path + "/" + this.name;
+	}
+	
+	public void setName(String name) {
+		this.name = name;
+	}
+	
+	public void setBranch(String branch) {
+		this.branch = branch;
+	}
+	
+	public ObservableList<String> getBranchNames() {
+		ObservableList<String> result = FXCollections.observableArrayList();
+		/*if (this.branches.size() <= 0) {
+			this.git.branchCreate().setName("main").call();
+		}*/
+			
+		for (Ref brnch : this.branches) {
+			result.add(brnch.toString());
+		}
+		return result;
+	}
+	
+	public List<Ref> getBranches() {
+		//return (List<Ref>) this.repoData.get("branches");
+		
+		return this.branches;
 	}
 	
 	public void create() {
@@ -43,7 +97,7 @@ public class RepositoryEditor {
 			System.out.println("EXCEPTION: " + "Failed to create repository; " + "Repo creation requires credentials (use setCredentials())");
 		}*/
 		try {
-			File localrepo = new File(System.getProperty("user.dir") + "/localrepos" + "/new_repo/.git");
+			File localrepo = new File(this.path + "/" + this.name + "/.git");
 			this.repository = FileRepositoryBuilder.create(localrepo);
 			if (!localrepo.exists()) {
 				
@@ -72,10 +126,36 @@ public class RepositoryEditor {
 	}
 	
 	public void load() {
+		if (this.git == null) { // for if we initialized without a valid git
+			try {
+				// load git
+				this.git = Git.open(new File(this.getCurrentRepositoryPath()));
+			} catch (IOException e) {
+				//e.printStackTrace();
+				System.out.println("Could not load local repository at:\n" + this.getCurrentRepositoryPath());
+				return;
+			}
+		}
 		
+		try {
+			List<Ref> branches = this.git.branchList().setListMode(ListMode.ALL).call();
+			//this.repoData.put("branches", branches);
+			this.branches = branches;
+		} catch (GitAPIException e) {
+			//e.printStackTrace();
+			System.out.println("Could not get the branches for local repository:\n" + this.getCurrentRepositoryPath());
+			//return;
+		}
+		
+		Config cfg = this.repository.getConfig();
+		String username = cfg.getString("user", null, "name");
+		String email = cfg.getString("user", null, "email");
+		System.out.println(username);
+		System.out.println(email);
+		this.repository.close(); //temp
 		
 		// load an existing local repository
-		try {
+		/*try {
 			Repository existingRepo = new FileRepositoryBuilder()
 				    .setGitDir(new File("grad_test_my_repo/.git"))
 				    .build();
@@ -88,7 +168,38 @@ public class RepositoryEditor {
 			this.repository.close(); //temp
 		} catch (IOException e) {
 			e.printStackTrace();
+		}*/
+		
+		
+	}
+	
+	public void push() {
+		
+		Config cfg = this.repository.getConfig();
+		String username = cfg.getString("user", null, "name");
+		String email = cfg.getString("user", null, "email");
+		
+		try {
+			
+			
+			URIish uri = new URIish("https://github.com/" + username + "/" + this.name + ".git");
+			//git.remoteAdd().setUri(uri).getRepository();
+			
+			// to pull changes from remote
+		    //git.pull().setCredentialsProvider(this.credentials).call();
+			
+			// to stage all files in a directory
+		    this.git.add().setUpdate(true).addFilepattern(this.name).call();
+
+		    // to create a commit with the staged files
+		    this.git.commit().setMessage("Editor Commit Test").call();
+
+		    // to push changes to remote
+		    this.git.push().call();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+		
 		
 		
 	}

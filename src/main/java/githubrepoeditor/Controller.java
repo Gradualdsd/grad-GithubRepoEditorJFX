@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.lib.Ref;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -34,6 +35,9 @@ public class Controller {
 
     @FXML
     private BorderPane Screen_Editor;
+    
+    @FXML
+    private BorderPane Screen_Editor2;
 
     @FXML
     private TreeView<File> localDirectoryView;
@@ -41,16 +45,59 @@ public class Controller {
     @FXML
     private TextArea localDirectoryView_TextFileEditor;
     
+    @FXML
+    private MenuItem MenuItem_Push;
+
+    @FXML
+    private TreeView<File> directoryView2;
+    
+    @FXML
+    private ChoiceBox<String> ChBox_BranchChooser;
+    
+    @FXML
+    private ComboBox<String> CoBox_BranchChooser;
+    
     
     private Scene scene;
     private Stage stage;
+    private RepositoryEditor editor = new RepositoryEditor("editor-test-repo","editortestbranch");
     
     @FXML
     void createNewRepo(ActionEvent event) {
-    	RepositoryEditor repo = new RepositoryEditor("test_localrepo_path/repo","editortestbranch");
     	//repo.setCredentials("gradualdsd", "genuinely idk my password");
-    	repo.create();
+    	editor.create();
+    	this.loadRepo(new File(editor.getCurrentRepositoryPath()));
     }
+    
+    private void loadRepo(File repo) {
+    	ObservableList<String> branchnames = FXCollections.observableArrayList();
+    	branchnames.add("main"); // FIXME: TEMP UNTIL WE CAN FIGURE OUT WHY WE DON'T GET THIS!!!
+    	branchnames.addAll(editor.getBranchNames());
+    	ChBox_BranchChooser.getItems().addAll(branchnames);		//.setItems(branchnames);
+    	ChBox_BranchChooser.setValue("main"); // force load on the main branch
+    	System.out.println(branchnames.getLast());
+    	CoBox_BranchChooser.setItems(branchnames);
+    	CoBox_BranchChooser.setValue("main"); // force load on the main branch
+    	this.updateDirectoryViewers(repo);
+
+    }
+    
+    private void updateDirectoryViewers(File repo) {
+    	localDirectoryView.setRoot(getFileTreeFromDirectory(repo));
+    	directoryView2.setRoot(getFileTreeFromDirectory(repo));
+    }
+    
+    private TreeItem<File> getFileTreeFromDirectory(File f) {
+        TreeItem<File> item = new TreeItem<>();
+        item.setValue(f);
+        if (f.isDirectory()) {
+            for (File child : f.listFiles()) {
+                item.getChildren().add(getFileTreeFromDirectory(child));
+            }
+        }
+        return item;
+    }
+    
     /**
      * Recursively finds all nodes whose ID starts with the given prefix.
      *
@@ -70,6 +117,11 @@ public class Controller {
             //Git.init().
         }
         return result;
+    }
+    
+    @FXML
+    void push(ActionEvent event) {
+    	
     }
     
     private void openScreen(Pane screen) {
