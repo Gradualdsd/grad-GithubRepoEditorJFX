@@ -47,20 +47,52 @@ public class Controller {
     
     @FXML
     private MenuItem MenuItem_Push;
+    
+    @FXML
+    private MenuItem MenuItem_OpenLocalRepo;
+    
+    @FXML
+    private MenuBar editorMenuBar;
 
     @FXML
     private TreeView<File> directoryView2;
     
     @FXML
-    private ChoiceBox<String> ChBox_BranchChooser;
+    private TextField commitTitleInput;
+    
+    @FXML
+    private TextField repoNameInput;
     
     @FXML
     private ComboBox<String> CoBox_BranchChooser;
     
+    //Login Screen
+    @FXML
+    private BorderPane Screen_Login;
+
+    @FXML
+    private PasswordField accessorInput;
     
-    private Scene scene;
-    private Stage stage;
-    private RepositoryEditor editor = new RepositoryEditor("editor-test-repo","editortestbranch");
+    @FXML
+    private Label accessorInputLabel;
+    
+    @FXML
+    private Button loginButton;
+
+    @FXML
+    private Label loginErrorsLabel;
+
+    @FXML
+    private CheckBox rememberMeToggle;
+
+    @FXML
+    private CheckBox useSSHKeyToggle;
+
+    @FXML
+    private TextField usernameInput;
+    
+    
+    private RepositoryEditor editor;
     
     @FXML
     void createNewRepo(ActionEvent event) {
@@ -71,13 +103,12 @@ public class Controller {
     
     private void loadRepo(File repo) {
     	ObservableList<String> branchnames = FXCollections.observableArrayList();
-    	branchnames.add("main"); // FIXME: TEMP UNTIL WE CAN FIGURE OUT WHY WE DON'T GET THIS!!!
-    	branchnames.addAll(editor.getBranchNames());
-    	ChBox_BranchChooser.getItems().addAll(branchnames);		//.setItems(branchnames);
-    	ChBox_BranchChooser.setValue("main"); // force load on the main branch
+    	//branchnames.add("main"); // FIXME: TEMP UNTIL WE CAN FIGURE OUT WHY WE DON'T GET THIS!!!
+    	branchnames.addAll(editor.getBranchNames("local"));
     	System.out.println(branchnames.getLast());
     	CoBox_BranchChooser.setItems(branchnames);
-    	CoBox_BranchChooser.setValue("main"); // force load on the main branch
+    	CoBox_BranchChooser.setValue(editor.getCurrentRepositoryBranchName()); // force load on the main branch
+    	repoNameInput.setText(editor.getName());
     	this.updateDirectoryViewers(repo);
 
     }
@@ -122,10 +153,19 @@ public class Controller {
     @FXML
     void push(ActionEvent event) {
     	
+    	editor.push("Editor Test Commit");
+    }
+    
+    @FXML
+    void openlocalrepo(ActionEvent event) {
+    	
+    	editor.AskToOpen();
+    	this.loadRepo(editor.getCurrentRepository().getDirectory());
     }
     
     private void openScreen(Pane screen) {
-    	List<Node> screens = findNodesWithIdPrefix(scene.getRoot(), "Screen_");
+    	List<Node> screens = findNodesWithIdPrefix(MainApp.scene.getRoot(), "Screen_");
+    	System.out.println(screens);
     	screens.remove(screen);
     	
     	for (Node scrn : screens) {
@@ -134,12 +174,54 @@ public class Controller {
     	}
     	screen.setDisable(false);
     	screen.setVisible(true);
-    	onOpenScreen(screen);
+    	System.out.println(screen.isVisible());
+    	System.out.println(screen.isDisabled());
+    	System.out.println(screen.isDisable());
+    	this.onOpenScreen(screen);
     }
     
     private void onOpenScreen(Pane screen) {
     	switch (screen.getId().substring("Screen_".length())) {
-    	case "Editor":
+    	case "Editor2":
+    		editorMenuBar.setDisable(false);
+    		editorMenuBar.setVisible(true);
+    		break;
+    		
+    	case "Login":
+    		editorMenuBar.setDisable(true);
+    		editorMenuBar.setVisible(false);
+    		
+    		loginErrorsLabel.setText("");
+    		loginButton.setOnAction(event -> {
+    			String username = usernameInput.getText();
+    			String accessor = accessorInput.getText();
+    			
+    			if (username.isBlank() || accessor.isBlank()) {
+    				loginErrorsLabel.setText("Username or Accessor is blank");
+    			}
+    			
+    			editor = new RepositoryEditor(); // temp, also make it so that you have to set these parameters in the editor
+    			
+    			//TODO: Check if the textbox inputs are valid
+    			
+    			if (useSSHKeyToggle.isSelected()) {
+    				//TODO: Later Add SSH Key Functionality
+    			} else {
+    				editor.setCredentials(username, accessor);
+    			}
+    			
+    			this.openScreen(Screen_Editor2);
+    			
+    		});
+    		
+    		useSSHKeyToggle.setOnAction(event -> {
+    			if (useSSHKeyToggle.isSelected()) {
+    				accessorInputLabel.setText("SSH Key:");
+    			} else {
+    				accessorInputLabel.setText("Personal Access Token:");
+    			}
+    		});
+    		
     		break;
     	default:
     		System.out.println("Yo you fucked up stupid idiot. You tried to load " + screen.getId() + " and it didn't work FUCKER!");
@@ -148,7 +230,7 @@ public class Controller {
     }
     
     private void onAppOpened() {
-    	
+    	this.openScreen(Screen_Login);
     }
     
     private void onCreate() {

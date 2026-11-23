@@ -7,11 +7,13 @@ import javafx.stage.Stage;
 
 public class MainApp extends Application{
 	
+	protected static Scene scene;
+	
 	public void start(Stage primaryStage) throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("main.fxml"));
         //loader.setController(this);
         Parent root = loader.load();
-        Scene scene = new Scene(root);
+        scene = new Scene(root);
         
         primaryStage.setTitle("Github Repo Editor");
         primaryStage.setScene(scene);
